@@ -1,0 +1,879 @@
+<!-- Author: Anna Xambó (a.xambo@qmul.ac.uk) -->
+<!-- Contributors: Johan Pauwels (j.pauwels@qmul.ac.uk), Gerard Roma (g.roma@hud.ac.uk)-->
+<!-- Copyright (c) 2018 Queen Mary University of London -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- here any additional <meta> tags -->
+  <title>Prototype Jam with Jamendo</title>
+
+  <!-- jQuery CDN -->
+  <script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-3.3.1.min.js"></script>
+  <!-- jQuery local fallback -->
+  <script>window.jQuery || document.write('<script src="js/jquery-3.3.1.min.js">\x3C/script>')</script>
+
+  <!-- Bootstrap JS CDN -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+    crossorigin="anonymous">
+
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+
+  <script language="javascript">
+
+    var sList = new Array();
+    var songs = new Array();
+    var chords = new Array();
+    var durations = new Array();
+    //var chordarray = new Array();
+    var myObj;
+    var i = 0;
+    var j = 0;
+    var k = [0, 0, 0];
+    var pastchord = "";
+    var total_checkboxes = 0;
+    var currentchord, nextchord;
+    var chords_v;
+
+    $(document).ready(function () {
+
+      $("#selectionForm").hide();
+      $("#circular").hide();
+      uncheckCheckboxes();
+
+      $("#btn1").click(function () {
+        // change view
+        var x = document.getElementById("circular");
+        var y = document.getElementById("linear");
+        if (x.style.display === "none") {
+          x.style.display = "block";
+          y.style.display = "none";
+        } else {
+          x.style.display = "none";
+          y.style.display = "block";
+        }
+      });
+    });
+
+    function handleChordsSubmission() {
+      sList = new Array();
+      chords_v = "";
+
+      $('#loading').html('Loading...');
+
+      countCheckboxes();
+
+      chords_v = sList.join('-');
+
+      $(".chords_chosen").html(chords_v);
+
+      var url = "http://c4dm-xenserv-virt5.eecs.qmul.ac.uk:5000/qbc/" + chords_v;
+
+      // Query to DB
+      // ajax
+
+      var jqxhr = $.ajax(url)
+        .done(function (data) {
+
+          songs = new Array();
+          chords = new Array();
+
+          for (i = 0; i < data.length; i++) {
+            songs.push(data[i]._id);
+            chords.push(data[i].chordSequence);
+            durations.push(data[i].duration);
+          }
+          $("#chordsForm").hide();
+          $("#selectionForm").show();
+          renderPlayers(songs);
+          $('#loading').html('');
+        })
+        .fail(function () {
+          alert("error, try again");
+        })
+
+      return false;
+    }
+
+    function renderPlayers(list) {
+      var audio = $("<audio>");
+      var api = "https://api.jamendo.com/v3.0/tracks/file/";
+      var client = "?client_id=cfa3a50f";
+      var id_p = "&id=";
+
+      // debugger;
+
+      var id_v1 = list[0];
+      var id_v2 = list[1];
+      var id_v3 = list[2];
+
+      var action = "&action=stream";
+      var widget_pre = "http://widgets.jamendo.com/v3/track/";
+      var widget_post = "?width=500";
+      var new_jamendo_url = "http://jamen.do/t/";
+
+      var sourceUrl1 = api + client + id_p + id_v1 + action;
+      var widgetUrl1 = new_jamendo_url + id_v1;
+      var sourceUrl2 = api + client + id_p + id_v2 + action;
+      var widgetUrl2 = new_jamendo_url + id_v2;
+      var sourceUrl3 = api + client + id_p + id_v3 + action;
+      var widgetUrl3 = new_jamendo_url + id_v3;
+
+      //var sourceUrl = "https://api.jamendo.com/v3.0/tracks/file/?client_id=cfa3a50f&id=1285606&action=stream";
+      //loop
+      $("audio#player1").attr("src", sourceUrl1);
+      $("a#player1_link").attr("href", widgetUrl1).attr("target", "_blank");
+      $("audio#player2").attr("src", sourceUrl2);
+      $("a#player2_link").attr("href", widgetUrl2).attr("target", "_blank");
+      $("audio#player3").attr("src", sourceUrl3);
+      $("a#player3_link").attr("href", widgetUrl3).attr("target", "_blank");
+
+    }
+
+    function countCheckboxes() {
+      $('input[type=checkbox]').each(function () {
+        // code from: https://stackoverflow.com/questions/1965075/loop-through-checkboxes-and-count-each-one-checked-or-unchecked
+        var sThisVal = (this.checked ? sList.push(this.id) : "");
+      });
+
+    }
+
+    function uncheckCheckboxes() {
+      $('input:checkbox').removeAttr('checked');
+      $(this).val('check all');
+    }
+
+    function clearChords() {
+      var selchords = chords_v.split(",");
+      for (i = 0; i < selchords.length; i++) {
+        $(selchords[i]).css("font-weight", "normal");
+        $(selchords[i]).css("font-size", "14px");
+      }
+    }
+
+    function callme(id, numsong, j) {
+
+      i = document.getElementById(id).currentTime;
+
+
+      var maxtime = durations[numsong];
+
+      console.log("maxtime: " + maxtime);
+
+      if (i >= maxtime) {
+        console.log("done!!");
+      }
+      else {
+        if (i < Math.floor(chords[numsong][j].end) && (j < chords[numsong].length)) {
+
+          currentchord = chords[numsong][j].label;
+          if (j < chords[numsong].length - 1) {
+            nextchord = chords[numsong][j + 1].label;
+          } else {
+            nextchord = "";
+          }
+
+          console.log("!!!!!!!!!!!" + currentchord);
+
+          // Printing chords
+
+          //linear
+          document.getElementById("linearcurrent").innerHTML = currentchord;
+          document.getElementById("linearnext").innerHTML = nextchord;
+
+          //local to each player
+          switch (numsong) {
+            case 0:
+              document.getElementById("currentchord-player1").innerHTML = currentchord;
+              document.getElementById("nextchord-player1").innerHTML = nextchord;
+              break;
+            case 1:
+              document.getElementById("currentchord-player2").innerHTML = currentchord;
+              document.getElementById("nextchord-player2").innerHTML = nextchord;
+              break;
+            case 2:
+              document.getElementById("currentchord-player3").innerHTML = currentchord;
+              document.getElementById("nextchord-player3").innerHTML = nextchord;
+              break;
+          }
+          // circle visualization
+          currentchordstr = String("text#" + currentchord);
+          nextchordstr = String("text#" + nextchord);
+          pastchordstr = String("text#" + pastchord);
+
+          $(currentchordstr).css("font-weight", "bold");
+          $(currentchordstr).css("font-size", "24px");
+          $(currentchordstr).attr("fill", "black");
+
+          if ((j < chords[numsong].length) && (currentchord != nextchord)) {
+            $(nextchordstr).css("font-size", "24px");
+            $(nextchordstr).css("font-weight", "bold");
+            $(nextchordstr).attr("fill", "grey");
+          } else {
+            nextchordstr = String("text#" + currentchord);
+          }
+
+          if (pastchord != "" && pastchord != currentchord) {
+            $(pastchordstr).css("font-size", "14px");
+            $(pastchordstr).css("font-weight", "normal");
+            $(pastchordstr).attr("fill", "black");
+          }
+
+          pastchord = chords[numsong][j].label;
+
+        }
+      }
+
+      if ((j < chords[numsong].length) && i >= chords[numsong][j].end) {
+        console.log(chords[numsong][j].end);
+        // counter for each player
+        j++;
+        k[numsong] = j;
+
+        if (j >= chords[numsong].length && i >= maxtime) {
+          k[numsong] = 0;
+          console.log("restart of song " + numsong + 1);
+        };
+
+      }
+
+      console.log("i" + i);
+      console.log("j" + j);
+    }
+  </script>
+
+
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Raleway');
+
+    body {
+      /* background: url(img/QbC_bg_alpha.png) no-repeat bottom right; */
+      background-color: rgba(255, 255, 255, 0.3);
+      font-family: "Raleway", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    .tab_title {
+      font-size: 20px;
+      color: orange;
+    }
+
+    .big-checkbox {
+      width: 30px;
+      height: 30px;
+    }
+
+    .row-header {
+      border-bottom: 1px solid #CDCDCD;
+      padding: 10px 0;
+    }
+
+    #submit-QbC,
+    #submit-voting,
+    #submit-all-data {
+      margin: 20px 50%;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #comment {
+      background-color: rgba(86, 61, 124, .15);
+    }
+
+    #loading,
+    #loadingrecap {
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      color: rgba(86, 61, 124);
+    }
+
+    .warning,
+    .chords_chosen {
+      color: rgba(86, 61, 124);
+    }
+  </style>
+  
+</head>
+
+
+<body>
+  <form id="chordsForm" onsubmit="return handleChordsSubmission()">
+
+    <div class="container">
+      <!-- start of container -->
+      <h1>Pick some chords!</h1>
+      <h2>What chords would you like to practice? </h2>
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">Type \ Root</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">A</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">Bb</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">B</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">C</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">Db</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">D</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">Eb</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">E</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">F</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">Gb</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">G</span>
+            </div>
+            <div class="col-sm-1 col-md-1">
+              <span class="tab_title">Ab</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">major</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Amaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Amaj">Amaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bbmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bbmaj">Bbmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bmaj">Bmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Cmaj" name="recruiter_contact" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Cmaj">Cmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dbmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dbmaj">Dbmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dmaj">Dmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Ebmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Ebmaj">Ebmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Emaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Emaj">Emaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Fmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Fmaj">Fmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gbmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gbmaj">Gbmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gmaj">Gmaj</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Abmaj" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Abmaj">Abmaj</label>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">minor</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Amin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Amin">Amin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bbmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bbmin">Bbmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bmin">Bmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Cmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Cmin">Cmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dbmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dbmin">Dbmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dmin">Dmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Ebmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Ebmin">Ebmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Emin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Emin">Emin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Fmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Fmin">Fmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gbmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gbmin">Gbmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gmin">Gmin</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Abmin" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Abmin">Abmin</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">7</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="A7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="A7">A7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bb7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bb7">Bb7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="B7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="B7">B7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="C7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="C7">C7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Db7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Db7">Db7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="D7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="D7">D7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Eb7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Eb7">Eb7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="E7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="E7">E7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="F7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="F7">F7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gb7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gb7">Gb7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="G7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="G7">G7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Ab7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Ab7">Ab7</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">major 7</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Amaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Amaj7">Amaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bbmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bbmaj7">Bbmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bmaj7">Bmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Cmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Cmaj7">Cmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dbmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dbmaj7">Dbmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dmaj7">Dmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Ebmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Ebmaj7">Ebmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Emaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Emaj7">Emaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Fmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Fmaj7">Fmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gbmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gbmaj7">Gbmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gmaj7">Gmaj7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Abmaj7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Abmaj7">Abmaj7</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row row-header">
+        <div class="col-md-3">
+          <span class="tab_title">minor 7</span>
+        </div>
+        <div class="col-md-9">
+          <div class="row">
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Amin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Amin7">Amin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bbmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bbmin7">Bbmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Bmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Bmin7">Bmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Cmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Cmin7">Cmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dbmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dbmin7">Dbmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Dmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Dmin7">Dmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Ebmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Ebmin7">Ebmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Emin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Emin7">Emin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Fmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Fmin7">Fmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gbmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gbmin7">Gbmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Gmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Gmin7">Gmin7</label>
+            </div>
+            <div class="col-sm-1">
+              <input type="checkbox" autocomplete="off" id="Abmin7" class=".form-check big-checkbox">
+              <label class="form-check-label" for="Abmin7">Abmin7</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-sm-12">
+          <button type="submit" id="submit-QbC" class="btn btn-primary">Submit Chords</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-sm-12">
+          <p id="loading"></p>
+        </div>
+      </div>
+
+    </div>
+    <!-- end of container -->
+
+  </form>
+
+  <form id="selectionForm">
+
+    <div class="container">
+      <h2>Chords selected:
+        <span class="chords_chosen"></span>
+      </h2>
+
+      <div class="row">
+
+        <div id="circular">
+          <svg id="svgcircular"></svg>
+        </div>
+        <div id="linear" width="800px" height="150px" style="padding-top:40px">
+          <svg id="svglinear" width="800px" height="150px">
+            <text x="80" y="80" font-family="sans-serif" font-size="100px" fill="black" id="linearcurrent">current</text>
+            <text x="500" y="80" font-family="sans-serif" font-size="100px" fill="grey" id="linearnext">next</text>
+          </svg>
+        </div>
+
+        <p id="btn1">Change View</p>
+
+        <div class="col-md-3 col-xs-9">
+          <audio id="player1" controls="controls" crossorigin="anonymous" ontimeupdate="callme('player1', 0, k[0])" onplay="clearChords()"></audio>
+          <p>
+            <a id="player1_link">Listen to full track here</a>
+          </p>
+        </div>
+
+        <div class="col-md-3 col-xs-9">
+          <span id="currentchord-player1"></span>
+          <span id="nextchord-player1" style="color:grey"></span>
+        </div>
+
+      </div>
+
+      <div class="row">
+
+        <div class="col-md-3 col-xs-9">
+          <audio id="player2" controls="controls" crossorigin="anonymous" ontimeupdate="callme('player2', 1, k[1])"></audio>
+          <p>
+            <a id="player2_link">Listen to full track here</a>
+          </p>
+        </div>
+
+        <div class="col-md-3 col-xs-9">
+          <span id="currentchord-player2"></span>
+          <span id="nextchord-player2" style="color:grey"></span>
+        </div>
+
+      </div>
+
+      <div class="row">
+
+        <div class="col-md-3 col-xs-9">
+          <audio id="player3" controls="controls" crossorigin="anonymous" ontimeupdate="callme('player3', 2, k[2])"></audio>
+          <p>
+            <a id="player3_link">Listen to full track here</a>
+          </p>
+        </div>
+
+        <div class="col-md-3 col-xs-9">
+          <span id="currentchord-player3"></span>
+          <span id="nextchord-player3" style="color:grey"></span>
+        </div>
+
+      </div>
+
+    </div>
+    <!-- end of container -->
+
+  </form>
+
+
+
+
+  <script>
+    // Script for the circular visualization, sources:
+    // https://bl.ocks.org/denjn5/f059c1f78f9c39d922b1c208815d18af
+    // https://bl.ocks.org/denjn5/e1cdbbe586ac31747b4a304f8f86efa5
+
+    // JSON data
+    var nodeData =
+    {
+      "name": "CHORDS",
+      "children":
+        [
+          {
+            "name": "Amaj",
+            "children": [{ "name": "Amin", "children": [{ "name": "A7", "children": [{ "name": "Amaj7", "children": [{ "name": "Amin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Bbmaj",
+            "children": [{ "name": "Bbmin", "children": [{ "name": "Bb7", "children": [{ "name": "Bbmaj7", "children": [{ "name": "Bbmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Bmaj",
+            "children": [{ "name": "Bmin", "children": [{ "name": "B7", "children": [{ "name": "Bmaj7", "children": [{ "name": "Bmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Cmaj",
+            "children": [{ "name": "Cmin", "children": [{ "name": "C7", "children": [{ "name": "Cmaj7", "children": [{ "name": "Cmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Dbmaj",
+            "children": [{ "name": "Dbmin", "children": [{ "name": "Db7", "children": [{ "name": "Dbmaj7", "children": [{ "name": "Dbmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Dmaj",
+            "children": [{ "name": "Dmin", "children": [{ "name": "D7", "children": [{ "name": "Dmaj7", "children": [{ "name": "Dmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Ebmaj",
+            "children": [{ "name": "Ebmin", "children": [{ "name": "Eb7", "children": [{ "name": "Ebmaj7", "children": [{ "name": "Ebmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Emaj",
+            "children": [{ "name": "Emin", "children": [{ "name": "E7", "children": [{ "name": "Emaj7", "children": [{ "name": "Emin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Fmaj",
+            "children": [{ "name": "Fmin", "children": [{ "name": "F7", "children": [{ "name": "Fmaj7", "children": [{ "name": "Fmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Gbmaj",
+            "children": [{ "name": "Gbmin", "children": [{ "name": "Gb7", "children": [{ "name": "Gbmaj7", "children": [{ "name": "Gbmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Gmaj",
+            "children": [{ "name": "Gmin", "children": [{ "name": "G7", "children": [{ "name": "Gmaj7", "children": [{ "name": "Gmin7", "size": 2 }] }] }] },],
+          },
+          {
+            "name": "Abmaj",
+            "children": [{ "name": "Abmin", "children": [{ "name": "Ab7", "children": [{ "name": "Abmaj7", "children": [{ "name": "Abmin7", "size": 2 }] }] }] },],
+          },
+        ]
+    };
+
+
+    // Variables
+    var width = 600;
+    var height = 600;
+    var radius = Math.min(width, height) / 2;
+    var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+    // Create primary <g> element
+    // Size our <svg> element, add a <g> element, and move translate 0,0 to the center of the element.
+    var g = d3.select('#svgcircular')
+      .attr('width', width)
+      .attr('height', height)
+      .append('g')
+      .attr('transform', 'translate(' + width / 2 + ',' + height / 2 + ')');
+
+    // Data strucure
+    // Create our sunburst data structure and size it.
+    var partition = d3.partition()
+      .size([2 * Math.PI, radius]);
+
+    // Find data root
+    // Get the data from our JSON file
+    // Find the root node of our data, and begin sizing process.
+    var root = d3.hierarchy(nodeData)
+      .sum(function (d) { return d.size });
+
+    // Size arcs
+    // Calculate the sizes of each arc that we'll draw later.
+    partition(root);
+    var arc = d3.arc()
+      .startAngle(function (d) { return d.x0 })
+      .endAngle(function (d) { return d.x1 })
+      .innerRadius(function (d) { return d.y0 })
+      .outerRadius(function (d) { return d.y1 });
+
+    // Put it all together
+    g.selectAll('g')
+      .data(root.descendants())
+      .enter().append('g').attr("class", "node").append('path')
+      .attr("display", function (d) { return d.depth ? null : "none"; })
+      .attr("d", arc)
+      .style('stroke', '#fff')
+      .style("fill", function (d) { return color((d.children ? d : d.parent).data.name); });
+
+    // Populate the <text> elements with our data-driven titles.
+    g.selectAll(".node")
+      .append("text")
+      .attr("transform", function (d) {
+        return "translate(" + arc.centroid(d) + ")rotate(" + computeTextRotation(d) + ")";
+      })
+      .attr("dx", "-12") // radius margin
+      .attr("dy", ".5em") // rotation align
+      //.attr("text-anchor", "middle")
+      //.attr("z-index", "100")
+      .attr("id", function (d) { return d.data.name; })
+      .text(function (d) { return d.parent ? d.data.name : "" });
+
+    /**
+         * Calculate the correct distance to rotate each label based on its location in the sunburst.
+         * @param {Node} d
+         * @return {Number}
+         */
+    function computeTextRotation(d) {
+      var angle = (d.x0 + d.x1) / Math.PI * 90;
+
+      // Avoid upside-down labels
+      return (angle < 120 || angle > 270) ? angle : angle + 180;  // labels as rims
+      //return (angle < 180) ? angle - 90 : angle + 90;  // labels as spokes
+    }
+
+  </script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+
+</html>
